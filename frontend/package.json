@@ -1,0 +1,26 @@
+{
+  "name": "campus-textbook-platform",
+  "version": "1.0.0",
+  "description": "校园二手教材精准交易平台",
+  "main": "index.js",
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "dev": "python -m http.server 8080"
+  },
+  "dependencies": {
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.4",
+    "axios": "^1.5.0",
+    "element-plus": "^2.3.8",
+    "@element-plus/icons-vue": "^2.1.0",
+    "qrcode": "^1.5.3",
+    "jsqr": "^1.4.0"
+  },
+  "devDependencies": {
+    "@vue/cli-service": "^5.0.8"
+  },
+  "keywords": ["vue", "textbook", "campus", "trading"],
+  "author": "Campus Developer",
+  "license": "MIT"
+}

@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园二手教材精准交易平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .app-container {
+            min-height: 100vh;
+        }
+        
+        .app-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            padding: 0 20px;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .app-title {
+            margin: 0;
+            font-size: 24px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .nav-menu {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .app-main {
+            padding: 30px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .tab-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            min-height: 500px;
+        }
+        
+        .panel-title {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        
+        .panel-desc {
+            margin: 0 0 25px 0;
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .app-footer {
+            background: rgba(44, 62, 80, 0.9);
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .footer-content p {
+            margin: 8px 0;
+        }
+        
+        .feature-list {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            font-size: 14px;
+        }
+        
+        .feature-list span {
+            opacity: 0.8;
+        }
+        
+        .course-tree-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 400px;
+        }
+        
+        .marketplace-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .book-card {
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        
+        .book-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px 0;
+            }
+            
+            .nav-menu {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .feature-list {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .marketplace-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    
+    <script>
+        const { createApp, ref, reactive, onMounted, computed } = Vue;
+        const { ElMessage, ElMessageBox, ElTree } = ElementPlus;
+
+        const CourseTree = {
+            name: 'CourseTree',
+            emits: ['course-select'],
+            setup(props, { emit }) {
+                const coursesData = ref({});
+                const loading = ref(false);
+                const API_BASE = 'http://localhost:5000/api';
+
+                const loadCoursesTree = async () => {
+                    loading.value = true;
+                    try {
+                        const response = await axios.get(`${API_BASE}/courses/tree`);
+                        coursesData.value = response.data;
+                    } catch (error) {
+                        console.error('加载课程失败:', error);
+                        ElMessage.error('加载课程数据失败，请检查后端服务');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const treeData = computed(() => {
+                    const result = [];
+                    for (const [major, semesters] of Object.entries(coursesData.value)) {
+                        const majorNode = {
+                            label: `🎓 ${major}`,
+                            children: []
+                        };
+                        for (const [semester, courses] of Object.entries(semesters)) {
+                            const semesterNode = {
+                                label: `📅 ${semester}`,
+                                children: courses.map(course => ({
+                                    label: `📖 ${course.name} (${course.code})`,
+                                    courseData: course
+                                }))
+                            };
+                            majorNode.children.push(semesterNode);
+                        }
+                        result.push(majorNode);
+                    }
+                    return result;
+                });
+
+                const handleNodeClick = (data) => {
+                    if (data.courseData) {
+                        emit('course-select', data.courseData);
+                        ElMessage.success(`已选择课程：${data.courseData.name}`);
+                    }
+                };
+
+                onMounted(() => {
+                    loadCoursesTree();
+                });
+
+                return {
+                    coursesData,
+                    treeData,
+                    loading,
+                    handleNodeClick,
+                    loadCoursesTree
+                };
+            },
+            template: `
+                <div class="course-tree-container">
+                    <div style="margin-bottom: 20px;">
+                        <el-button @click="loadCoursesTree" :loading="loading" size="small">
+                            🔄 刷新数据
+                        </el-button>
+                    </div>
+                    <div v-loading="loading">
+                        <el-tree
+                            :data="treeData"
+                            :props="{ children: 'children', label: 'label' }"
+                            @node-click="handleNodeClick"
+                            class="course-tree">
+                        </el-tree>
+                        <div v-if="Object.keys(coursesData).length === 0 && !loading" style="text-align: center; padding: 40px; color: #999;">
+                            <p>📚 暂无课程数据</p>
+                            <el-button @click="loadCoursesTree" type="primary">重新加载</el-button>
+                        </div>
+                    </div>
+                </div>
+            `
+        };
+
+        const ScanISBN = {
+            name: 'ScanISBN',
+            setup() {
+                const isbnInput = ref('');
+                const qrCodeUrl = ref('');
+                const bookInfo = ref(null);
+                const loading = ref(false);
+                const API_BASE = 'http://localhost:5000/api';
+
+                const scanISBN = async () => {
+                    if (!isbnInput.value.trim()) {
+                        ElMessage.warning('请输入ISBN号');
+                        return;
+                    }
+
+                    loading.value = true;
+                    try {
+                        const response = await axios.post(`${API_BASE}/search_book_by_isbn`, {
+                            isbn: isbnInput.value.trim()
+                        });
+                        bookInfo.value = response.data;
+                        ElMessage.success('📚 教材信息识别成功！');
+                    } catch (error) {
+                        console.error('ISBN识别失败:', error);
+                        ElMessage.error('识别失败，请检查ISBN号或网络连接');
+                        bookInfo.value = null;
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const generateQR = async () => {
+                    if (!isbnInput.value.trim()) {
+                        ElMessage.warning('请先输入ISBN号');
+                        return;
+                    }
+
+                    try {
+                        const response = await axios.post(`${API_BASE}/generate_qr`, {
+                            text: isbnInput.value.trim()
+                        });
+                        qrCodeUrl.value = response.data.qr_code;
+                        ElMessage.success('📱 二维码生成成功！');
+                    } catch (error) {
+                        console.error('二维码生成失败:', error);
+                        ElMessage.error('二维码生成失败');
+                    }
+                };
+
+                return {
+                    isbnInput,
+                    qrCodeUrl,
+                    bookInfo,
+                    loading,
+                    scanISBN,
+                    generateQR
+                };
+            },
+            template: `
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="margin-bottom: 15px;">📖 ISBN号识别</h3>
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <el-input
+                                v-model="isbnInput"
+                                placeholder="请输入13位ISBN号，如：9787111234567"
+                                size="large"
+                                style="flex: 1;">
+                            </el-input>
+                            <el-button @click="scanISBN" :loading="loading" type="primary" size="large">
+                                🔍 识别教材
+                            </el-button>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <el-button @click="generateQR" size="default" type="success">
+                                📱 生成二维码
+                            </el-button>
+                            <el-button @click="isbnInput = ''; bookInfo = null; qrCodeUrl = ''" size="default">
+                                🗑️ 清空
+                            </el-button>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+                        <div v-if="bookInfo">
+                            <h3 style="margin-bottom: 15px;">📚 教材信息</h3>
+                            <el-card>
+                                <div style="line-height: 1.8;">
+                                    <p><strong>📖 书名:</strong> {{ bookInfo.title }}</p>
+                                    <p><strong>✍️ 作者:</strong> {{ bookInfo.author }}</p>
+                                    <p><strong>🏢 出版社:</strong> {{ bookInfo.publisher }}</p>
+                                    <p><strong>📅 出版年份:</strong> {{ bookInfo.year }}</p>
+                                    <p><strong>🔢 ISBN:</strong> {{ bookInfo.isbn }}</p>
+                                </div>
+                            </el-card>
+                        </div>
+
+                        <div v-if="qrCodeUrl">
+                            <h3 style="margin-bottom: 15px;">📱 二维码</h3>
+                            <el-card style="text-align: center;">
+                                <img :src="qrCodeUrl" alt="二维码" style="max-width: 200px; border-radius: 8px;" />
+                                <p style="margin-top: 10px; color: #666;">扫描二维码分享教材信息</p>
+                            </el-card>
+                        </div>
+                    </div>
+
+                    <el-alert
+                        title="💡 使用说明"
+                        type="info"
+                        :closable="false"
+                        show-icon>
+                        <p>• ISBN号通常印在图书背面条形码上方，由13位数字组成</p>
+                        <p>• 识别后可自动匹配课程信息，方便查找对应教材</p>
+                        <p>• 生成的二维码可分享给其他同学，便于快速查看教材信息</p>
+                    </el-alert>
+                </div>
+            `
+        };
+
+        const BookMarketplace = {
+            name: 'BookMarketplace',
+            setup() {
+                const listings = ref([]);
+                const loading = ref(false);
+                const API_BASE = 'http://localhost:5000/api';
+
+                const loadListings = async () => {
+                    loading.value = true;
+                    try {
+                        const response = await axios.get(`${API_BASE}/listings`);
+                        listings.value = response.data;
+                    } catch (error) {
+                        console.error('加载二手书失败:', error);
+                        ElMessage.error('加载数据失败，请检查后端服务');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const makeAppointment = async (listing) => {
+                    try {
+                        const { value: formData } = await ElMessageBox.prompt(
+                            '请填写预约信息（格式：时间,地点,备注）',
+                            '📅 预约验书',
+                            {
+                                confirmButtonText: '确认预约',
+                                cancelButtonText: '取消',
+                                inputPlaceholder: '例如：明天下午2点,图书馆一楼,微信联系'
+                            }
+                        );
+                        
+                        ElMessage.success(`📅 预约成功！已向卖家 ${listing.seller} 发送预约信息`);
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('预约失败，请重试');
+                        }
+                    }
+                };
+
+                onMounted(() => {
+                    loadListings();
+                });
+
+                return {
+                    listings,
+                    loading,
+                    loadListings,
+                    makeAppointment
+                };
+            },
+            template: `
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+                        <p style="margin: 0;">🛒 发现 {{ listings.length }} 本二手教材，支持在线预约验书</p>
+                        <el-button @click="loadListings" :loading="loading" size="default">
+                            🔄 刷新列表
+                        </el-button>
+                    </div>
+
+                    <div v-loading="loading" class="marketplace-grid">
+                        <div v-for="listing in listings" :key="listing.id" class="book-card">
+                            <h3 style="margin: 0 0 15px 0; color: #2c3e50;">📚 {{ listing.textbook.title }}</h3>
+                            <div style="margin-bottom: 15px; line-height: 1.6;">
+                                <p><strong>✍️ 作者:</strong> {{ listing.textbook.author }}</p>
+                                <p><strong>🔢 ISBN:</strong> {{ listing.textbook.isbn }}</p>
+                                <p><strong>👤 卖家:</strong> {{ listing.seller }}</p>
+                                <p><strong>📊 成色:</strong> <el-tag :type="listing.condition.includes('9') ? 'success' : 'warning'" size="small">{{ listing.condition }}</el-tag></p>
+                            </div>
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+                                <span style="font-size: 24px; font-weight: bold;">¥{{ listing.price.toFixed(2) }}</span>
+                            </div>
+                            <p style="color: #666; margin-bottom: 20px; line-height: 1.6;">{{ listing.description }}</p>
+                            <div style="display: flex; gap: 8px;">
+                                <el-button @click="makeAppointment(listing)" type="primary" size="default" style="flex: 1;">
+                                    📅 预约验书
+                                </el-button>
+                                <el-button type="success" size="default" style="flex: 1;">
+                                    💬 联系卖家
+                                </el-button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="listings.length === 0 && !loading" style="text-align: center; padding: 60px; color: #999;">
+                        <p style="font-size: 48px; margin-bottom: 20px;">📚</p>
+                        <h3 style="margin-bottom: 15px;">暂无二手教材</h3>
+                        <p style="margin-bottom: 25px;">目前还没有发布的二手教材，快去发布第一本吧！</p>
+                        <el-button type="primary" @click="loadListings">重新加载</el-button>
+                    </div>
+                </div>
+            `
+        };
+
+        const PublishBook = {
+            name: 'PublishBook',
+            setup() {
+                const form = reactive({
+                    title: '',
+                    author: '',
+                    isbn: '',
+                    price: '',
+                    condition: '8成新',
+                    description: '',
+                    contact_method: 'wechat',
+                    contact_info: ''
+                });
+
+                const loading = ref(false);
+                const API_BASE = 'http://localhost:5000/api';
+
+                const publishBook = async () => {
+                    if (!form.title.trim()) {
+                        ElMessage.warning('请输入教材名称');
+                        return;
+                    }
+                    if (!form.price || form.price <= 0) {
+                        ElMessage.warning('请输入有效价格');
+                        return;
+                    }
+                    if (!form.contact_info.trim()) {
+                        ElMessage.warning('请输入联系方式');
+                        return;
+                    }
+
+                    loading.value = true;
+                    try {
+                        // 调用真实API
+                        const response = await axios.post(`${API_BASE}/publish`, {
+                            title: form.title,
+                            author: form.author,
+                            isbn: form.isbn,
+                            price: parseFloat(form.price),
+                            condition: form.condition,
+                            description: form.description,
+                            contact_method: form.contact_method,
+                            contact_info: form.contact_info,
+                            seller_name: '当前用户',
+                            seller_id: 1
+                        });
+                        
+                        if (response.data.success) {
+                            ElMessage.success('📚 教材发布成功！已在二手市场展示');
+                            // 重置表单
+                            Object.keys(form).forEach(key => {
+                                if (key === 'condition') {
+                                    form[key] = '8成新';
+                                } else if (key === 'contact_method') {
+                                    form[key] = 'wechat';
+                                } else {
+                                    form[key] = '';
+                                }
+                            });
+                            
+                            // 提示用户可以去查看
+                            setTimeout(() => {
+                                ElMessage.info('您可以切换到"二手市场"页面查看刚发布的教材');
+                            }, 1500);
+                        } else {
+                            ElMessage.error(response.data.message || '发布失败');
+                        }
+                    } catch (error) {
+                        console.error('发布失败:', error);
+                        ElMessage.error('发布失败，请检查网络连接');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                return {
+                    form,
+                    loading,
+                    publishBook
+                };
+            },
+            template: `
+                <div class="form-container">
+                    <el-form :model="form" label-width="100px" size="default">
+                        <h3 style="margin-bottom: 20px; color: #2c3e50;">📚 教材基本信息</h3>
+                        
+                        <el-form-item label="📖 教材名称" required>
+                            <el-input v-model="form.title" placeholder="请输入教材名称" />
+                        </el-form-item>
+
+                        <el-form-item label="✍️ 作者">
+                            <el-input v-model="form.author" placeholder="请输入作者姓名" />
+                        </el-form-item>
+
+                        <el-form-item label="🔢 ISBN号">
+                            <el-input v-model="form.isbn" placeholder="如：9787111234567" />
+                        </el-form-item>
+
+                        <h3 style="margin: 30px 0 20px 0; color: #2c3e50;">💰 交易信息</h3>
+
+                        <el-form-item label="💵 售价" required>
+                            <el-input v-model="form.price" type="number" placeholder="请输入价格" min="0">
+                                <template #suffix>元</template>
+                            </el-input>
+                        </el-form-item>
+
+                        <el-form-item label="📊 成色" required>
+                            <el-select v-model="form.condition" style="width: 100%;">
+                                <el-option label="全新" value="全新"></el-option>
+                                <el-option label="9成新" value="9成新"></el-option>
+                                <el-option label="8成新" value="8成新"></el-option>
+                                <el-option label="7成新" value="7成新"></el-option>
+                            </el-select>
+                        </el-form-item>
+
+                        <el-form-item label="📝 描述">
+                            <el-input v-model="form.description" type="textarea" :rows="4" placeholder="请描述教材的具体情况" />
+                        </el-form-item>
+
+                        <h3 style="margin: 30px 0 20px 0; color: #2c3e50;">📞 联系信息</h3>
+
+                        <el-form-item label="📱 联系方式" required>
+                            <el-select v-model="form.contact_method" style="width: 100%;">
+                                <el-option label="微信" value="wechat"></el-option>
+                                <el-option label="QQ" value="qq"></el-option>
+                                <el-option label="手机号" value="phone"></el-option>
+                                <el-option label="邮箱" value="email"></el-option>
+                            </el-select>
+                        </el-form-item>
+
+                        <el-form-item label="📋 联系账号" required>
+                            <el-input v-model="form.contact_info" :placeholder="form.contact_method === 'wechat' ? '请输入微信号' : form.contact_method === 'qq' ? '请输入QQ号' : form.contact_method === 'phone' ? '请输入手机号' : '请输入邮箱地址'" />
+                        </el-form-item>
+
+                        <div style="text-align: center; margin-top: 30px;">
+                            <el-button @click="publishBook" type="primary" size="large" :loading="loading" style="min-width: 150px;">
+                                <span v-if="!loading">🚀 发布到二手市场</span>
+                                <span v-else>发布中...</span>
+                            </el-button>
+                        </div>
+                    </el-form>
+                </div>
+            `
+        };
+
+        const UserRegister = {
+            name: 'UserRegister',
+            setup() {
+                const form = reactive({
+                    username: '',
+                    email: '',
+                    password: '',
+                    major: '',
+                    grade: ''
+                });
+
+                const loading = ref(false);
+                const API_BASE = 'http://localhost:5000/api';
+
+                const registerUser = async () => {
+                    if (!form.username.trim()) {
+                        ElMessage.warning('请输入用户名');
+                        return;
+                    }
+                    if (!form.email.trim()) {
+                        ElMessage.warning('请输入邮箱');
+                        return;
+                    }
+                    if (!form.password) {
+                        ElMessage.warning('请输入密码');
+                        return;
+                    }
+
+                    loading.value = true;
+                    try {
+                        const response = await axios.post(`${API_BASE}/register`, {
+                            username: form.username,
+                            email: form.email,
+                            password: form.password,
+                            major: form.major,
+                            grade: form.grade
+                        });
+                        
+                        if (response.data.success) {
+                            ElMessage.success('🎉 注册成功！欢迎加入校园二手教材交易平台');
+                            Object.keys(form).forEach(key => {
+                                form[key] = '';
+                            });
+                            
+                            // 注册成功后提示用户去登录
+                            setTimeout(() => {
+                                ElMessage.info('请前往登录页面登录您的账号');
+                            }, 1500);
+                        } else {
+                            ElMessage.error(response.data.message || '注册失败');
+                        }
+                    } catch (error) {
+                        console.error('注册失败:', error);
+                        ElMessage.error('注册失败，请检查网络连接');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                return {
+                    form,
+                    loading,
+                    registerUser
+                };
+            },
+            template: `
+                <div class="form-container">
+                    <el-form :model="form" label-width="80px" size="default">
+                        <h3 style="margin-bottom: 20px; color: #2c3e50;">👤 基本信息</h3>
+                        
+                        <el-form-item label="👤 用户名" required>
+                            <el-input v-model="form.username" placeholder="请输入用户名" />
+                        </el-form-item>
+
+                        <el-form-item label="📧 邮箱" required>
+                            <el-input v-model="form.email" type="email" placeholder="请输入邮箱地址" />
+                        </el-form-item>
+
+                        <el-form-item label="🔒 密码" required>
+                            <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
+                        </el-form-item>
+
+                        <h3 style="margin: 30px 0 20px 0; color: #2c3e50;">🎓 学籍信息</h3>
+
+                        <el-form-item label="📚 专业">
+                            <el-input v-model="form.major" placeholder="请输入专业" />
+                        </el-form-item>
+
+                        <el-form-item label="📅 年级">
+                            <el-select v-model="form.grade" placeholder="请选择年级" style="width: 100%;">
+                                <el-option label="大一" value="大一"></el-option>
+                                <el-option label="大二" value="大二"></el-option>
+                                <el-option label="大三" value="大三"></el-option>
+                                <el-option label="大四" value="大四"></el-option>
+                                <el-option label="研究生" value="研究生"></el-option>
+                            </el-select>
+                        </el-form-item>
+
+                        <div style="text-align: center; margin-top: 30px;">
+                            <el-button @click="registerUser" type="primary" size="large" :loading="loading" style="min-width: 150px;">
+                                <span v-if="!loading">🚀 立即注册</span>
+                                <span v-else>注册中...</span>
+                            </el-button>
+                        </div>
+                    </el-form>
+                </div>
+            `
+        };
+
+        const UserLogin = {
+            name: 'UserLogin',
+            setup() {
+                const form = reactive({
+                    username: '',
+                    password: ''
+                });
+
+                const loading = ref(false);
+                const API_BASE = 'http://localhost:5000/api';
+
+                const loginUser = async () => {
+                    if (!form.username.trim()) {
+                        ElMessage.warning('请输入用户名或邮箱');
+                        return;
+                    }
+                    if (!form.password.trim()) {
+                        ElMessage.warning('请输入密码');
+                        return;
+                    }
+
+                    loading.value = true;
+                    try {
+                        const response = await axios.post(`${API_BASE}/login`, {
+                            username: form.username,
+                            password: form.password
+                        });
+                        
+                        if (response.data.success) {
+                            localStorage.setItem('user', JSON.stringify(response.data.user));
+                            localStorage.setItem('token', response.data.token);
+                            
+                            ElMessage.success(`🎉 欢迎回来，${response.data.user.username}！`);
+                            
+                            // 触发登录成功事件
+                            window.dispatchEvent(new CustomEvent('userLoggedIn', {
+                                detail: response.data.user
+                            }));
+                            
+                            form.username = '';
+                            form.password = '';
+                        } else {
+                            ElMessage.error(response.data.message || '登录失败');
+                        }
+                    } catch (error) {
+                        console.error('登录失败:', error);
+                        ElMessage.error('登录失败，请检查网络连接');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const quickLogin = () => {
+                    form.username = 'demo_user';
+                    form.password = '123456';
+                    ElMessage.info('已填入演示账号，点击登录即可体验');
+                };
+
+                return {
+                    form,
+                    loading,
+                    loginUser,
+                    quickLogin
+                };
+            },
+            template: `
+                <div class="form-container">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h2 style="color: #2c3e50;">🔐 用户登录</h2>
+                        <p style="color: #666;">登录后可发布和购买二手教材</p>
+                    </div>
+
+                    <el-form :model="form" label-width="80px" size="default">
+                        <el-form-item label="账号" required>
+                            <el-input v-model="form.username" placeholder="请输入用户名或邮箱" />
+                        </el-form-item>
+
+                        <el-form-item label="密码" required>
+                            <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
+                        </el-form-item>
+
+                        <div style="text-align: center; margin-top: 30px;">
+                            <el-button @click="loginUser" type="primary" size="large" :loading="loading" style="min-width: 150px; margin-bottom: 15px;">
+                                <span v-if="!loading">🚀 立即登录</span>
+                                <span v-else>登录中...</span>
+                            </el-button>
+                            <br>
+                            <el-button @click="quickLogin" type="success" size="default" plain>
+                                ⚡ 演示登录
+                            </el-button>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px; color: #666;">
+                            <span>还没有账号？</span>
+                            <a href="#" style="color: #409eff;">立即注册</a>
+                        </div>
+                    </el-form>
+                </div>
+            `
+        };
+
+        const App = {
+            name: 'App',
+            components: {
+                CourseTree,
+                ScanISBN,
+                BookMarketplace,
+                PublishBook,
+                UserRegister,
+                UserLogin
+            },
+            setup() {
+                const activeTab = ref('home');
+                const selectedCourse = ref(null);
+                const currentUser = ref(null);
+
+                const checkLoginStatus = () => {
+                    const user = localStorage.getItem('user');
+                    const token = localStorage.getItem('token');
+                    if (user && token) {
+                        currentUser.value = JSON.parse(user);
+                    }
+                };
+
+                const switchTab = (tab) => {
+                    activeTab.value = tab;
+                };
+
+                const onCourseSelect = (course) => {
+                    selectedCourse.value = course;
+                    activeTab.value = 'textbooks';
+                };
+
+                const logout = () => {
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                    currentUser.value = null;
+                    ElMessage.success('已退出登录');
+                    activeTab.value = 'home';
+                };
+
+                onMounted(() => {
+                    checkLoginStatus();
+                    
+                    window.addEventListener('userLoggedIn', (event) => {
+                        currentUser.value = event.detail;
+                    });
+                });
+
+                return {
+                    activeTab,
+                    selectedCourse,
+                    currentUser,
+                    switchTab,
+                    onCourseSelect,
+                    logout
+                };
+            },
+            template: `
+                <div class="app-container">
+                    <el-container>
+                        <el-header class="app-header">
+                            <div class="header-content">
+                                <h1 class="app-title">📚 校园二手教材精准交易平台</h1>
+                                <nav class="nav-menu">
+                                    <el-button @click="switchTab('home')" :type="activeTab === 'home' ? 'primary' : 'default'">🏠 首页</el-button>
+                                    <el-button @click="switchTab('scan')" :type="activeTab === 'scan' ? 'primary' : 'default'">📱 扫码识别</el-button>
+                                    <el-button @click="switchTab('marketplace')" :type="activeTab === 'marketplace' ? 'primary' : 'default'">🛒 二手市场</el-button>
+                                    <el-button @click="switchTab('publish')" :type="activeTab === 'publish' ? 'primary' : 'default'">✏️ 发布</el-button>
+                                </nav>
+                                
+                                <!-- 用户状态区域 -->
+                                <div class="user-area" style="display: flex; align-items: center; gap: 10px;">
+                                    <div v-if="currentUser" style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="color: #2c3e50; font-weight: 500;">👋 {{ currentUser.username }}</span>
+                                        <el-button @click="logout" type="danger" size="small" plain>退出</el-button>
+                                    </div>
+                                    <div v-else style="display: flex; gap: 8px;">
+                                        <el-button @click="switchTab('login')" :type="activeTab === 'login' ? 'primary' : 'success'">🔐 登录</el-button>
+                                        <el-button @click="switchTab('register')" :type="activeTab === 'register' ? 'primary' : 'default'">👤 注册</el-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-header>
+
+                        <el-main class="app-main">
+                            <div v-if="activeTab === 'home'" class="tab-panel">
+                                <h2 class="panel-title">📖 课程分类浏览</h2>
+                                <p class="panel-desc">按专业和学期分类查看课程，点击课程可查看相关教材</p>
+                                <CourseTree @course-select="onCourseSelect" />
+                            </div>
+
+                            <div v-if="activeTab === 'textbooks'" class="tab-panel">
+                                <h2 class="panel-title">📚 {{ selectedCourse?.name || '课程' }} - 教材列表</h2>
+                                <div v-if="selectedCourse" style="text-align: center; padding: 40px;">
+                                    <p style="font-size: 18px; color: #666; margin-bottom: 20px;">
+                                        该课程的教材信息正在整理中...
+                                    </p>
+                                    <el-button @click="switchTab('marketplace')" type="primary">
+                                        🛒 直接查看二手市场
+                                    </el-button>
+                                </div>
+                            </div>
+
+                            <div v-if="activeTab === 'scan'" class="tab-panel">
+                                <h2 class="panel-title">📱 ISBN扫码识别</h2>
+                                <p class="panel-desc">扫描或输入教材ISBN号，自动匹配课程信息</p>
+                                <ScanISBN />
+                            </div>
+
+                            <div v-if="activeTab === 'marketplace'" class="tab-panel">
+                                <h2 class="panel-title">🛒 二手教材市场</h2>
+                                <p class="panel-desc">浏览和购买二手教材，支持在线预约验书</p>
+                                <BookMarketplace />
+                            </div>
+
+                            <div v-if="activeTab === 'publish'" class="tab-panel">
+                                <h2 class="panel-title">✏️ 发布二手教材</h2>
+                                <p class="panel-desc">发布你的二手教材信息</p>
+                                <PublishBook />
+                            </div>
+
+                            <div v-if="activeTab === 'login'" class="tab-panel">
+                                <h2 class="panel-title">🔐 用户登录</h2>
+                                <p class="panel-desc">登录后可发布和购买二手教材</p>
+                                <UserLogin />
+                            </div>
+
+                            <div v-if="activeTab === 'register'" class="tab-panel">
+                                <h2 class="panel-title">👤 用户注册</h2>
+                                <p class="panel-desc">注册账号以使用完整功能</p>
+                                <UserRegister />
+                            </div>
+                        </el-main>
+
+                        <el-footer class="app-footer">
+                            <div class="footer-content">
+                                <p>🎓 校园二手教材精准交易平台 - 让教材流转更简单</p>
+                                <p class="feature-list">
+                                    <span>📱 扫码识别</span>
+                                    <span>🌳 课程树展示</span>
+                                    <span>📅 在线预约验书</span>
+                                </p>
+                            </div>
+                        </el-footer>
+                    </el-container>
+                </div>
+            `
+        };
+
+        const app = createApp(App);
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html>
